@@ -1,0 +1,1289 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>reveal.js</title>
+
+    <link rel="stylesheet" href="dist/reset.css">
+    <link rel="stylesheet" href="dist/reveal.css">
+    <!--<link rel="stylesheet" href="dist/theme/black.css">-->
+    <link rel="stylesheet" href="dist/theme/solarized.css">
+
+    <!-- Theme used for syntax highlighted code -->
+    <link rel="stylesheet" href="plugin/highlight/monokai.css">
+</head>
+<body>
+<div class="reveal">
+    <div class="slides">
+        <section>
+            <h3>Python Abstract Syntax Tree</h3>
+            <h4>Practical and unpractical uses</h4>
+
+            <aside class="notes">
+
+                Hello everyone
+
+                I'm Laurent.
+
+                I'm going to talk about the Abstract Syntax Tree.
+
+                I'll try my best to keep my French accent in check, there might be relapses but hopefully it won't be
+                too bad.
+            </aside>
+        </section>
+
+        <section>
+            <div data-markdown>
+
+            <textarea data-template>
+            ### We're going to talk about
+
+            - What's an Abstract Syntax Tree (AST)?
+            - Practical applications
+            - Zoom in on some `pytest` magic
+            - Brainstorm some ideas for more AST-based tools
+            </textarea>
+            </div>
+            <aside class="notes">
+                Practical applications: why you should care.
+                <br/>
+                Zoom in on how AST transformations are used in pytest
+                <br/>
+                Brainstorm
+                <br/>
+
+                [At the end] let's dive in!
+            </aside>
+
+        </section>
+
+        <section>
+            <div data-markdown>
+            <textarea data-template>
+            ### `(1 + 2) * 3`
+
+```bash
+        *
+       / \
+      +   3
+     / \
+    1   2
+```
+            </textarea>
+            </div>
+
+            <aside class="notes" data-markdown>
+                Let's start with the "Tree" part of Abstract Syntax Tree.
+
+                An expression like this one can be represented as a tree.
+                There's an operator. A left-hand side, right hand side.
+
+                The left-hand side is itself an operation.
+
+                It converts to this beautiful tree.
+
+                DESCRIBE THE TREE.
+
+                - Root node: multiplication operator
+                - left hand side and right hand side as children.
+                - subtree as child for left hand side.
+
+                If you had to turn yourself into a computer, you might evaluate it starting from the bottom: you'd do 1
+                + 2 first - essentially evaluating the left child subtree - then you'd use that to evaluate the root
+                node.
+            </aside>
+        </section>
+        <section>
+                <pre><code class="language-plaintext" data-trim>
+$ python -m ast simple.py
+                </code></pre>
+            <pre class="fragment"><code class="language-plaintext" data-trim>
+Module(
+   body=[
+      Expr(
+         value=BinOp(
+            left=BinOp(
+               left=Constant(value=1),
+               op=Add(),
+               right=Constant(value=2)),
+            op=Mult(),
+            right=Constant(value=3)))],
+   type_ignores=[])
+                </code></pre>
+
+            <aside class="notes" data-markdown>
+                Let's take a look at the Python AST for this expression.
+
+                Now there's more stuff here.
+
+                There's a module. Basically always the top level element.
+
+                The module has a body, which has a list with just one expression.
+
+                There we find a tree similar to the one we had.
+
+                Notice we got that tree from running the `ast` module from the standard library as a script with the
+                `python -m` syntax.
+                You can run that in your terminal on your Python files. It's not particularly readable - we're better at
+                reading source code.
+            </aside>
+
+        </section>
+
+
+        <section>
+            <div data-markdown>
+            <textarea data-template>
+                ![Python AST for a simple expression](ast_tree_simple.png "Python AST")
+            </textarea>
+            </div>
+            <aside class="notes">
+                Because it's a tree, it should be displayed as a tree.
+                Probably a bit easier to read with a picture.
+
+                Every node is a Python object, and the children here are attributes on the object.
+
+                There are nodes for FunctionDefinition, Assignment, For loops...
+                You don't need to know them beforehand.
+            </aside>
+
+        </section>
+
+        <section>
+            <h3>What is the Abstract Syntax Tree?</h3>
+            <ul>
+                <li class="fragment">a tree of Python objects that represent the source</li>
+                <li class="fragment">independent of formatting</li>
+                <li class="fragment">a representation of the code... that we can play with and modify</li>
+            </ul>
+            <aside class="notes" data-markdown>
+                So what is the AST?
+
+                Independent of formatting: no whitespace, no comments. We lost some information, can't reconstruct the
+                original source code exactly.
+
+                A useful representation of the code.
+
+                Useful for some purposes. NOT reading the code.
+            </aside>
+        </section>
+
+        <section>
+
+            <h3>Big picture: from source code to execution</h3>
+            <ol>
+                <li class="fragment">Read source code as text.</li>
+                <li class="fragment">Tokenizing, parsing, construction of the AST.</li>
+                <li class="fragment">Compilation of the AST to bytecode instructions (`.pyc` files).</li>
+                <li class="fragment">Execution by the CPython interpreter.</li>
+
+
+            </ol>
+            <aside class="notes" data-markdown>
+                Before we focus on the AST, let's talk about a very high-level view of how Python code gets executed.
+                This is so that you have an idea of the big picture.
+                You can look into it if you're interested.
+
+                Big words
+
+                PRESS
+
+                Python starts by reading your code as text, presumably from a file.
+
+                PRESS
+
+                Tokenizing: splitting the text in relevant words.
+                Parsing: taking these tokens and grouping them according to the Python grammar.
+                From there, construction of the Abstract Syntax Tree.
+
+                PRESS
+
+                Then the AST is compiled to bytecode instructions.
+
+                PRESS
+
+                ...
+
+
+                DONT WORRY TOO MUCH THOUGH if this is new to you and you're a bit confused here. There are many big
+                words on this slide.
+
+                You can understand and use the Abstract Syntax Tree without looking at the other parts.
+            </aside>
+
+        </section>
+        <!--        <section data-markdown>-->
+        <!--            Also in JavaScript and Go and virtually every language.-->
+
+        <!--            Most compilers use some form of AST as a tool to make optimizations on the program.-->
+        <!--        </section>-->
+
+        <!-- CODE 1 -->
+        <section data-auto-animate data-auto-animate-duration="0">
+      <pre data-id="ast-basics">
+          <code class="language-plaintext" data-line-numbers="1-1"
+                style="overflow: hidden; scrollbar-gutter: stable both-edges;">>>> import ast
+
+
+
+
+
+
+
+
+</code>
+</pre>
+
+            <aside class="notes" data-markdown>
+                I said the AST was a useful representation. How do we use it?
+            </aside>
+        </section>
+
+
+        <!-- CODE 2 -->
+        <section data-auto-animate data-auto-animate-duration="0">
+      <pre data-id="ast-basics">
+          <code class="language-plaintext" data-line-numbers="2-2"
+                style="overflow: hidden; scrollbar-gutter: stable both-edges;">>>> import ast
+>>> source = "(1 + 2) * 3"
+
+
+
+
+
+
+
+</code>
+</pre>
+
+            <aside class="notes" data-markdown>
+                Start with some source code
+            </aside>
+        </section>
+
+
+        <!-- CODE 3 -->
+        <section data-auto-animate data-auto-animate-duration="0">
+      <pre data-id="ast-basics">
+          <code class="language-plaintext" data-line-numbers="3-3"
+                style="overflow: hidden; scrollbar-gutter: stable both-edges;">>>> import ast
+>>> source = "(1 + 2) * 3"
+>>> node = ast.parse(source)
+
+
+
+
+
+
+</code>
+</pre>
+
+            <aside class="notes" data-markdown>
+                ast.parse: turn python code into an AST.
+            </aside>
+        </section>
+
+
+        <!-- CODE 4 -->
+        <section data-auto-animate data-auto-animate-duration="0">
+      <pre data-id="ast-basics">
+          <code class="language-plaintext" data-line-numbers="4-5"
+                style="overflow: hidden; scrollbar-gutter: stable both-edges;">>>> import ast
+>>> source = "(1 + 2) * 3"
+>>> node = ast.parse(source)
+>>> node
+&lt;ast.Module object at 0x7bcbef830370>
+
+
+
+
+</code>
+</pre>
+
+            <aside class="notes" data-markdown>
+                We have a module object. It's a Python object with attributes on it.
+            </aside>
+        </section>
+
+
+        <!-- CODE 5 -->
+        <section data-auto-animate data-auto-animate-duration="0">
+      <pre data-id="ast-basics">
+          <code class="language-plaintext" data-line-numbers="6-7"
+                style="overflow: hidden; scrollbar-gutter: stable both-edges;">>>> import ast
+>>> source = "(1 + 2) * 3"
+>>> node = ast.parse(source)
+>>> node
+&lt;ast.Module object at 0x7bcbef830370>
+>>> ast.dump(node)
+'Module(body=[Expr(value=BinOp(left=BinOp(left=Constant(value=1), op=Add(), right=Constant(value=2)), op=Mult(), right=Constant(value=3)))], type_ignores=[])'
+
+
+</code>
+</pre>
+
+            <aside class="notes" data-markdown>
+                We can dump the tree to a string representation
+
+                This is what the ast module does when invoked on a file.
+            </aside>
+        </section>
+
+        <!-- CODE 6 -->
+        <section data-auto-animate data-auto-animate-duration="0">
+      <pre data-id="ast-basics">
+          <code class="language-plaintext" data-line-numbers="8-9"
+                style="overflow: hidden; scrollbar-gutter: stable both-edges;">>>> import ast
+>>> source = "(1 + 2) * 3"
+>>> node = ast.parse(source)
+>>> node
+&lt;ast.Module object at 0x7bcbef830370>
+>>> ast.dump(node)
+'Module(body=[Expr(value=BinOp(left=BinOp(left=Constant(value=1), op=Add(), right=Constant(value=2)), op=Mult(), right=Constant(value=3)))], type_ignores=[])'
+>>> ast.unparse(node)
+'(1 + 2) * 3'
+</code>
+</pre>
+
+            <aside class="notes" data-markdown>
+                We can also convert the tree back to code.
+
+                Now Python does not need that because it can execute the AST.
+
+                If we modify the AST, we can give it to Python and it can execute it.
+
+
+                But this is very convenient to debug.
+            </aside>
+        </section>
+
+
+        <section>
+            <h3>ast.NodeTransformer</h3>
+            <pre>
+                <code class="language-python" data-trim>
+class RewriteName(NodeTransformer):
+
+    def visit_Name(self, node):
+        return Subscript(
+            value=Name(id='data', ctx=Load()),
+            slice=Constant(value=node.id),
+            ctx=node.ctx
+        )
+</code>
+            </pre>
+            <pre class="fragment"><code class="language-python" data-trim>b = a + 1</code></pre>
+            <pre class="fragment"><code class="language-python" data-trim>data['b'] = data['a'] + 1</code></pre>
+
+            <aside class="notes" data-markdown>
+                Example straight from the docs.
+
+                Subscript node means bracket access. The slice is the index or the key we use inside the brackets.
+
+
+                Replaces all variables like 'foo' with 'data["foo"]'.
+
+
+                The part we're interested in is the NodeTransformer. This is a pattern that can be used to modify the
+                AST.
+
+                It follows the "visitor" programming pattern, meaning we define the methods as `visit_NodeType` and they
+                will be called on relevant nodes as the tree is visited.
+            </aside>
+
+        </section>
+
+
+        <section>
+
+            <div data-markdown>### Pytest AST transformation</div>
+
+            <aside class="notes">Now let's look in more details at a real-world use case for AST manipulation.</aside>
+
+        </section>
+
+
+        <section>
+            <div data-markdown>
+            <textarea data-template>
+            Testing in Python: you don't need a library
+```python
+def hello(name: str):
+    return f"Hello,  {name}!"
+
+
+def test_hello():
+    assert hello("world") == "Hello, world!"
+
+
+if __name__ == '__main__':
+    test_hello()
+    print("tests passed")
+```
+            </textarea>
+            </div>
+
+            <aside class="notes" data-markdown>
+                We start - we want to do testing with Python - we don't need a library. The language
+                provides assert.
+
+                we have our hello function
+
+                our test
+
+                This is great: nothing extra to install, very simple.
+
+                now if we try and run that, we might see
+            </aside>
+        </section>
+
+        <section>
+            <div data-markdown>
+
+
+            <textarea data-template>
+```plaintext
+Traceback (most recent call last):
+  File "/home/laurent/programming/playground/python/ast/assert_simple.py", line 10, in <module>
+    test_hello()
+  File "/home/laurent/programming/playground/python/ast/assert_simple.py", line 6, in test_hello
+    assert hello("world") == "Hello, world!"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+```
+
+Not helpful.
+            </textarea>
+            </div>
+
+            <aside class="notes" data-markdown>Then we run it, it fails because it's a good test.
+
+                And we get this message. Telling us it failed.
+            </aside>
+        </section>
+
+
+        <section>
+            <div data-markdown>
+
+            <textarea data-template>
+```plaintext
+assert square(add(a, b)) == expected - 1
+```
+            </textarea>
+
+            </div>
+
+            <aside class="notes" data-markdown>
+                It can get even worse. Here we don't know what the 'expected' value is. We don't know what the left hand
+                side evaluated to. a, b? We basically don't know anything.
+
+                Whenever this happens I'm like: Computer! You supposed to be my friend!
+
+                Now imagine the bug happens only once every 15 test runs. Or only if you run the whole test suite and
+                not the test individually.
+
+                In both cases you probably have other issues to fix, but still, it would be nice to know what the values
+                were.
+            </aside>
+        </section>
+        <section>
+            DEVX: add print statements, run again.
+            <aside class="notes" data-markdown>
+                UGH.
+                That's what we do I guess!
+
+                [This is where I should insert a meme?]
+            </aside>
+        </section>
+
+        <section>
+                <pre>
+                    <code class="language-bash">$ python -m pytest assert_simple.py</code>
+                </pre>
+            <pre class="fragment">
+                    <code class="language-plaintext">
+    def test_hello():
+>       assert hello("world") == "Hello, world!"
+E       AssertionError: assert 'Hello,  world!' == 'Hello, world!'
+E
+E         - Hello, world!
+E         + Hello,  world!
+E         ?        +
+
+assert_simple.py:6: AssertionError
+
+                    </code>
+
+                </pre>
+
+
+            <aside class="notes">
+                [curious]
+                What if we run it with pytest instead?
+
+                PRESS
+
+                Much nicer!
+
+                more examples of pytest reports:
+                https://docs.pytest.org/en/stable/example/reportingdemo.html#tbreportdemo
+
+                They do this for strings, but also for dictionaries, lists. They just try to show a helpful message to
+                the developer.
+            </aside>
+        </section>
+
+        <section>How did that happen?
+
+            <aside class="notes" data-markdown>
+                pytest did not execute *exactly* the code that was written in your test.
+
+                It modified the code just before execution, so that it would print this nicer error message.
+            </aside>
+
+        </section>
+
+
+        <section>
+            <h3>Can we do it?</h3>
+            <ul>
+                <li class="fragment">We can modify the AST to run different code.</li>
+                <li class="fragment">How would we want to modify the code?</li>
+            </ul>
+
+            <aside class="notes" data-markdown>
+                Can we do it?
+
+                [curiosity mindset, make the discussion not about how exactly but what it would take]
+                What would it take to actually do that?
+
+                [small pause]
+
+                PRESS
+
+                Well we know we can..
+
+                PRESS
+
+                How would we want to modify: That's a good starting point.
+            </aside>
+
+
+        </section>
+
+        <section>
+            <pre><code class="language-plaintext" data-trim style="max-height: 100%">
+            Test test_add_and_square failed with the following stacktrace:
+            Traceback (most recent call last):
+
+            File "tests_assert.py", line 1, in &lt;module&gt;
+
+            File "tests_assert.py", line 31, in test_add_and_square
+            assert square(add(a, b)) == expected - 1
+
+            AssertionError
+
+            Where:
+            expected=25
+            b=3
+            a=2
+            square(add(a, b))=25
+            add(a, b)=5
+            expected - 1=24
+            </code></pre>
+
+            <aside class="notes" data-markdown>
+                so if we're going to build something like this
+
+                We will want to print intermediate variables.
+
+                So we probably need to store the result of `add(a, b)` for instance. Also `expected - 1`.
+
+                Because we print them later in the assertion messages, we want them in variables.
+            </aside>
+
+        </section>
+
+
+        <section data-auto-animate>
+            Roughly, replace
+            <pre><code class="language-python" data-trim>
+            assert square(add(a, b)) == expected - 1
+            </code></pre>
+            with
+            <pre><code data-id="desired-code" class="language-python" style="height: calc(100% + 16px)">
+    intermediate_1 = add(a, b)
+    intermediate_2 = square(intermediate_1)
+    intermediate_3 = expected - 1
+
+    try:
+        assert intermediate_2 == intermediate_3
+    except AssertionError:
+        print(intermediate_1)
+        print(intermediate_2)
+        print(intermediate_3)
+        print(a)
+        print(b)
+        raise
+            </code></pre>
+
+            <aside class="notes">Somehow we'll want to print the text for the variable too, not just the value.</aside>
+
+        </section>
+
+
+        <section data-auto-animate data-auto-animate-delay="0">
+            Maybe, from
+            <pre><code class="language-python" data-trim>
+            assert square(add(a, b)) == expected - 1
+            </code></pre>
+            to
+            <pre><code data-id="desired-code" class="language-python">
+    intermediate_1 = ("add(a, b)", add(a, b))
+    intermediate_2 = ("square(add(a, b))", square(intermediate_1))
+    intermediate_3 = ("expected - 1", expected - 1)
+
+    try:
+        assert intermediate_2[1] == intermediate_3[1]
+    except AssertionError:
+        print(intermediate_1)
+        print(intermediate_2)
+        print(intermediate_3)
+        print("a", a)
+        print("b", b)
+        raise
+            </code></pre>
+            <aside class="notes">
+                "just use a tuple"
+
+                So if this is what we want, what does this mean?
+
+
+                We will want a try except block.
+
+                We will want intermediate variables.
+
+                We will want to change the assert statement itself to use intermediate variables.
+
+                That means replacing the Call nodes with nodes that reference variables.
+                We're in an assert node, we see a Call node, we want to essentially move the call higher up, store its
+                result in a variable, and use the variable instead in the assert
+
+                ALTERNATIVE
+                """
+                We will visit the nodes in the tree.
+                Once we're in an assert node, we want nodes like Call to be replaced by an intermediate variable that
+                has been defined before.
+
+                So we are replacing the `Call` node with a variable usage (a `Name` node), but also we want a variable
+                assignment (an `Assign` node)
+                to be inserted higher up in the tree.
+
+                This does not exactly fit the NodeTransformer API, because we are not changing the Call node one for
+                one.
+                """
+
+                MORE. Take time here.
+                mention there's a tricky bit about collecting assignments that need to be inserted at another position.
+
+
+                When we visit the call node inside the original assert, we
+            </aside>
+        </section>
+
+        <section>
+            <pre>
+                <code class="language-python" data-line-numbers="1-3|4-7|9-14|16-22|1-22" data-trim
+                      style="max-height:100%">
+class RewriteAssertNodeTransformer(ast.NodeTransformer):
+
+    def visit_Assert(self, node):
+        # collect assignments
+        transformer = AddIntermediateVariablesTransformer()
+        node = transformer.visit(node)
+        assignments = list(reversed(transformer.assignments))
+
+        # construct except block
+        except_handler = ast.ExceptHandler(
+            type=ast.Name(id="AssertionError", ctx=ast.Load()),
+            name="e",
+            body=[*get_print_nodes(assignments), ast.Raise()],
+        )
+
+        # return a Try node to replace the Assert
+        return ast.Try(
+            body=[*assignments, node],
+            handlers=[except_handler],
+            orelse=[],
+            finalbody=[],
+        )
+</code>
+            </pre>
+
+            <aside class="notes" data-markdown>
+                This is what our transformer might look like.
+
+                First thing is we're looking for assert nodes. we use the visit_Assert method.
+
+                describe the code, big picture steps.
+
+                Explain difficulty is that we want to collect assignments. We create variables to replace nodes like
+                `add(a, b)`. But then these variables need to be defined beforehand.
+
+                NOT GREAT:
+                So we use another transformer. It replaces function calls with variables and collects their definition.
+                We collect them because the right place to put them is higher up, here in the assert node.
+            </aside>
+
+        </section>
+
+        <section>
+            <pre><code class="language-python" data-trim style="max-height: 100%">
+def get_print_nodes(assignments: list[ast.Assign]) -> list[ast.Expr]:
+    nodes = []
+    for assignment in assignments:
+        variable_id = assignment.targets[0].id
+        print_args = [
+            ast.Constant(f"{variable_id}="),
+            ast.Name(id=variable_id, ctx=ast.Load()),
+        ]
+        nodes.append(
+            ast.Expr(
+                ast.Call(
+                    ast.Name(id="print", ctx=ast.Load()), print_args, []
+                )
+            )
+        )
+
+    return nodes
+</code></pre>
+            <aside class="notes">The details of the code are not critical.
+
+                This constructs print nodes based on the list of assignments.
+                For each variable, we add a print statement with the variable name and its value.
+            </aside>
+
+        </section>
+
+        <section>
+            <pre><code class="language-python" data-trim style="max-height: 100%">
+class AddIntermediateVariablesTransformer(ast.NodeTransformer):
+    variable_prefix = "intermediate_"
+
+    def __init__(self):
+        super().__init__()
+        self.assignments = []
+        self.variable_counter = 1
+            </code>
+            </pre>
+        </section>
+        <section>
+            <pre><code class="language-python" data-trim style="max-height: 100%">
+class AddIntermediateVariablesTransformer(ast.NodeTransformer):
+    ...
+    def visit_Call(self, node):
+        return self.collect_assignments_and_transform(node)
+
+    def visit_BinOp(self, node):
+        return self.collect_assignments_and_transform(node)
+            </code>
+            </pre>
+
+            <aside class="notes">This is the same class, we want two types of nodes for our example. ALl function calls,
+                and all binary operations.
+
+                Basically we have a NodeTransformer that acts on these two types of nodes.
+            </aside>
+        </section>
+        <section>
+            <pre><code class="language-python" data-line-numbers="1-3|4-4|16-19|5-9|11|12-14" data-trim
+                       style="max-height: 100%">
+class AddIntermediateVariablesTransformer(ast.NodeTransformer):
+    ...
+    def collect_assignments_and_transform(self, node):
+        variable_id = self.get_variable_id(node)
+        self.assignments.append(
+            ast.Assign(
+                targets=[ast.Name(id=variable_id, ctx=ast.Store())], value=node
+            )
+        )
+        self.variable_counter += 1
+        self.generic_visit(node)
+        return ast.copy_location(
+            ast.Name(id=variable_id, ctx=ast.Load()), node
+        )
+
+    def get_variable_id(self, node):
+        name = get_friendly_variable_name(node)
+        variable_id = f"{self.variable_prefix}{self.variable_counter}_{name}"
+        return variable_id
+            </code>
+            </pre>
+
+            <aside class="notes">We get a variable id - this is the name of our variable.
+
+                We do this with our counter and variable prefix, this is accounting.
+
+            </aside>
+        </section>
+
+        <section>
+                <pre><code class="language-python" data-trim>
+                def get_friendly_variable_name(node):
+                    return ast.unparse(node)
+                </code></pre>
+
+            <div class="fragment">Example name:
+                <pre><code class="language-plaintext">add(a, b)</code></pre>
+            </div>
+            <aside class="notes" data-markdown>
+                Wait. We can't do that.
+
+                Turns out we can do this.
+
+                It means we can't unparse.
+
+                It's invalid python syntax.
+
+                But we can do it. It's like sudo. We can make all the bad decisions we want.
+
+                This is useful! Remember when we discussed what we wanted, we mentioned maybe a tuple would be nice for
+                the variables, so they store the source code information.
+                Well, it turns out we can put it in the variable name if we want. The print nodes we construct already
+                use the variable name.
+                So we don't need to store the pretty string anywhere else.
+
+                Is that a good decision? We can definitely do it.
+            </aside>
+
+        </section>
+
+
+        <section>
+            Final output:
+            <pre><code class="language-python" data-trim style="max-height:100%">
+try:
+    intermediate_3_expected - 1 = expected - 1
+    intermediate_2_add(a, b) = add(a, b)
+    intermediate_1_square(add(a, b)) = square(intermediate_2_add(a, b))
+    assert intermediate_1_square(add(a, b)) == intermediate_3_expected - 1
+except AssertionError as e:
+    print('intermediate_3_expected - 1=', intermediate_3_expected - 1)
+    print('intermediate_2_add(a, b)=', intermediate_2_add(a, b))
+    print('intermediate_1_square(add(a, b))=', intermediate_1_square(add(a, b)))
+    raise
+            </code></pre>
+
+            <aside class="notes" data-markdown>
+                Now this is not exactly as promised if you compare the slides, but I'll say it's good
+                enough :).
+
+                So there's the variable naming thing again here that makes things confusing.
+                Our intermediate_1_square(add(a, b)) is NOT a function call. It's just a variable.
+                Same for intermediate_3_expected - 1.
+
+                Some loss of information in ast.unparse here, because we exploited the variable names.
+
+
+                This might have been a lot of code. Especially on slides. Code on slides. Always great to read.
+
+                But that's basically all of the code. For a proof of concept that achieves the behavior we wanted.
+
+            </aside>
+
+        </section>
+
+        <section>
+            <h3>What about pytest?</h3>
+            <pre class="fragment">
+<code class="hljs python" data-trim style="max-height: 100%">
+import builtins as @py_builtins
+import _pytest.assertion.rewrite as @pytest_ar
+
+def hello(name: str):
+    return f'Hello,  {name}!'
+
+def test_hello():
+    @py_assert1 = 'world'
+    @py_assert3 = hello(@py_assert1)
+    @py_assert6 = 'Hello, world!'
+    @py_assert5 = @py_assert3 == @py_assert6
+    if not @py_assert5:
+        @py_format8 = @pytest_ar._call_reprcompare(('==',), (@py_assert5,), ('%(py4)s\n{%(py4)s = %(py0)s(%(py2)s)\n} == %(py7)s',), (@py_assert3, @py_assert6)) % {'py0': @pytest_ar._saferepr(hello) if 'hello' in @py_builtins.locals() or @pytest_ar._should_repr_global_name(hello) else 'hello', 'py2': @pytest_ar._saferepr(@py_assert1), 'py4': @pytest_ar._saferepr(@py_assert3), 'py7': @pytest_ar._saferepr(@py_assert6)}
+        @py_format10 = ('' + 'assert %(py9)s') % {'py9': @py_format8}
+        raise AssertionError(@pytest_ar._format_explanation(@py_format10))
+    @py_assert1 = @py_assert3 = @py_assert5 = @py_assert6 = None
+if __name__ == '__main__':
+    test_hello()
+    print('tests passed')
+</code>
+</pre>
+
+            <aside class="notes">
+                So what about pytest.
+                How do they transform the code.
+
+
+                Well I just said that was a lot of code, I decided to put some more code.
+
+                You can import the AssertionRewriter class from pytest code and run it on some source code.
+                Then ast.unparse to get this.
+                from _pytest.assertion.rewrite import AssertionRewriter
+
+                TODO i don't really know why py_format8 and 10 are so complicated.
+
+                Acknowledge: this looks a bit complicated.
+
+                But:
+
+                - they do a lot!
+                - The '@' is invalid in Python identifiers. @a = 1 gives a syntax error. But a syntax error happens
+                *before the AST is constructed*, when Python reads your code.
+                It's because we are past parsing and in the ast that we can introduce these names.
+
+                At the end of the day, it's not that complicated!
+            </aside>
+        </section>
+        <section>
+
+            <ul>
+
+                <li><a href="http://pybites.blogspot.be/2011/07/behind-scenes-of-pytests-new-assertion.html">http://pybites.blogspot.be/2011/07/behind-scenes-of-pytests-new-assertion.html</a>
+                </li>
+                <li>
+            <pre><code class="language-python" data-trim>
+                            from _pytest.assertion.rewrite import AssertionRewriter
+            </code></pre>
+                </li>
+                <li>
+                    <a href="https://github.com/pytest-dev/pytest/blob/be83aa618c68ebb9080b537bbd8b19b97a7f4eb8/src/_pytest/assertion/rewrite.py#L615">https://github.com/pytest-dev/pytest/blob/be83aa618c68ebb9080b537bbd8b19b97a7f4eb8/src/_pytest/assertion/rewrite.py#L615</a>
+                </li>
+            </ul>
+            <aside class="notes">
+                If you're interested, the code is actually readable.
+
+                I won't claim to understand it in detail though. So maybe that's an empty claim, but also I don't want
+                my shortcomings to hold you back :).
+            </aside>
+        </section>
+
+        <section>
+            <h3>What else?</h3>
+            <ul>
+                <li class="fragment">Interpreter</li>
+                <li class="fragment">Linters</li>
+                <li class="fragment">Refactoring</li>
+                <li class="fragment">'Transpiling': converting from one language to another</li>
+                <li class="fragment">Template engines</li>
+            </ul>
+
+            <aside class="notes" data-markdown>
+                With the pytest example, I wanted to show that ASTs are used in some very popular tools.
+                So: where else are ASTs used.
+
+                Interpreter: If you access the JavaScript AST and run it in Python, you have a JavaScript interpreter
+                written in Python.
+                You can also do a Python interpreter written in Python. That's one way of confusing people.
+
+                Linters: eslint in JavaScript, flake8 in Python.
+                formatters too: black uses the AST.
+
+                Transpiling: babel is an example in JavaScript to convert new syntax to older, compatible syntax. So we
+                can use the fancy new JavaScript features, and it converts the code back to an equivalent version taht
+                all browsers can understand.
+
+                Template engines: jinja2 is one example.
+
+                I think it's a fundamental concept, not because it is basic or simple - it's not - but because it powers
+                a lot of the tools we use.
+
+                And while it might be hard to write these tools - handling edge cases, different python versions... - ,
+                understanding the principles goes a long way.
+
+            </aside>
+        </section>
+
+
+        <section>
+            <h3>Automated refactoring</h3>
+            <ul>
+                <li class="fragment">A script that takes old code as input, and outputs refactored code.</li>
+                <li class="fragment">Popular tools: <a href="https://github.com/asottile/pyupgrade">pyupgrade</a>, <a
+                        href="https://github.com/adamchainz/django-upgrade">django-upgrade</a></li>
+                <li class="fragment">The AST does not preserve comments or formatting out of the box.</li>
+                <li class="fragment">Less abstract trees: Concrete Syntax Trees (CST).</li>
+                <li class="fragment">One example is <a href="https://github.com/Instagram/LibCST">LibCST</a> from
+                    Instagram.
+                </li>
+            </ul>
+            <aside class="notes">
+                Refactoring script sometimes called a "codemod", code modifier.
+
+                AST does not preserve comments or formatting but I think pyupgrade still uses the AST and make careful
+                edits at the right places (instead of dumping the new tree).
+
+                CST: cousin to the AST. Sometimes also called a 'Parse tree'.
+                They preserve whitespaces and comments. They need to be a bit more complicated because they want to be
+                able to output the source code back exactly as it was.
+                It feels quite a bit like using an AST.
+
+                I think it's easier to **not care about formatting at all** and let an external tool like black or ruff
+                format your code.
+
+                That means your refactoring process does not need to care too much about whitespace: it's a lot easier.
+
+                But you probably don't want to delete all the comments :). Some people get upset when you delete their
+                comments.
+
+                Mentioning LibCST because I used it but there are others. You can also use the AST and be careful about
+                how you modify the code: approach taken by pyupgrade and django upgrade.
+
+                Not going to go into details, but if you're interested, now you know there are examples out there: you
+                can write your own tools!
+            </aside>
+        </section>
+
+        <section>
+            <h3>Automated refactoring: baby steps</h3>
+
+            <ul>
+                <li class="fragment">Scenario: migration from a library version to another</li>
+                <li class="fragment">Look for existing tools</li>
+                <li class="fragment">Write ugly code</li>
+                <li class="fragment">Format with black</li>
+                <li class="fragment">Handle edge cases manually</li>
+            </ul>
+
+            <aside class="notes" data-markdown>
+                This is the main point I'm trying to make so I want to reinforce that.
+
+                Understanding the concept is great.
+                Look for existing tools! If you know it's possible, you know something can exist.
+                So maybe you find django-upgrade and you're set.
+
+                Failing that, you can write your own code. I'd recommend using a library like libCST, it lowers the
+                barrier to entry.
+                It's not always super easy to write the code, but there are examples out there.
+
+                And also: you get to write ugly code.
+                Not that you have to, but this code runs as a script to refactor your codebase. It doesn't matter if
+                it's ugly.
+
+                That's a bit liberating :).
+
+                Practical advice: you don't have to care about formatting either.
+                I prefer to give control of formatting to a tool like black or ruff. Then the refactor script can mess
+                everything up - there's no need to manage whitespaces so the code still looks good after applying the
+                script.
+
+                Finally, if the script gets you 90% of the way there, that might be enough for your use case!
+                It's fine to do things manually too.
+            </aside>
+
+
+        </section>
+
+        <section>
+            <div data-markdown>
+                <textarea data-template>
+                ## Conclusion
+                </textarea>
+            </div>
+
+            <aside class="notes">
+                The Abstract Syntax Tree is one of these things that might sound mysterious the first time you hear it.
+
+                But when you look at it, it's actually quite approachable, and gives you a lot of power for things like
+                automated refactoring.
+
+                You won't necessarily use it every day. But knowing it powers some of your tools, and it's there if you
+                need it. Next time you have a very boring migration to make on your entire codebase, you might be able
+                to write a migration tool to automate part of
+                it.
+                Or find one on the internet :).
+
+
+                Now this isn't the end of the talk.
+                This is just the end of the structured part of the talk.
+                :)
+            </aside>
+        </section>
+
+        <section>The serious stuff
+            <aside class="notes">We did that</aside>
+        </section>
+
+        <section>
+
+            <h3>Emojis in Python code</h3>
+            <pre><code class="language-python" data-trim>
+import pandas as 🐼
+# Define a dataframe and print it to the console
+📋 = 🐼.DataFrame(
+    {
+        "😀": ["🐼", "🐍", "🦁"],
+        "🏷️": ["Panda", "Python", "Lion"],
+        "💯": 🔀.randint(2, 5, size=3),
+    },
+).set_index("😀")
+print(📋)
+                </code>
+            </pre>
+
+            Run with:
+            <pre><code class="language-plaintext">pythonji 🐼.🐍 </code></pre>
+
+            <a href="https://github.com/gahjelle/pythonji/blob/master/README.md">https://github.com/gahjelle/pythonji/blob/master/README.md</a>
+            <aside class="notes">example from the readme.
+
+                How it works? [It was not immediately clear to me]
+
+
+                Python does not allow emojis
+
+                So when you run the file with pythonji (note you can't run it with Python!), it replaces emojis with boring strings. Then parses the AST with
+                python.
+                Then transforms the AST to add emojis back.
+
+                Because the boring part of Python seems to be the parser, once you're past that everyone is cool.
+            </aside>
+        </section>
+
+        <section>
+            <h3>Code obfuscation</h3>
+            <div class="fragment">
+                <pre><code class="language-python">import sys</code></pre>
+            </div>
+
+            <div class="fragment">
+                <pre><code class="language-python">sys = __import__('sys', globals(), locals(), [], 0)</code></pre>
+            </div>
+            <div class="fragment">
+                <a href="https://github.com/fionafibration/ASTObfuscate">https://github.com/fionafibration/ASTObfuscate</a>
+            </div>
+            </ul>
+            <aside class="notes">
+
+                This is pretty standard. It's fine.
+
+                PRESS
+
+                But this... this is much better. It makes your coworker pause on every statement. It hurts them. Now I'm
+                not saying you should want that.
+
+                But it gives you job security.
+
+
+                PRESS
+
+                This is used for Capture the Flag events (security-related games where you solve challenges).
+            </aside>
+
+        </section>
+
+        <section><h3>Claude reacts</h3>
+
+            <pre class="fragment"><code class="language-plaintext" style="white-space: pre-wrap">
+AssertionError: hello('world') == 'Hello, world!'
+
+OH. MY. GOODNESS. 🤯 hello() is STILL not working after ALL THESE WEEKS? I literally spent HOURS on this function and it can't even return a simple greeting correctly? I am BEYOND frustrated right now. How hard is it to capitalize a string and add an exclamation point?! 😤💻
+                </code>
+            </pre>
+
+            <pre class="fragment"><code class="language-plaintext" style="white-space: pre-wrap">OH FOR THE LOVE OF— seriously, HELLO() function? AGAIN? I TRUSTED YOU this time! 🤬</code></pre>
+
+            <pre class="fragment"><code class="language-plaintext" style="white-space: pre-wrap">
+Oh my GOODNESS. That `hello` function just stabbed me right in the back - I thought we were FRIENDS and now it's refusing to do the ONE SIMPLE THING we asked of it! 🤯
+                </code></pre>
+
+            <aside class="notes">
+                This is an attempt I made when preparing this talk.
+
+                For better assert mechanism. We have pytest for the rational part of comparing values.
+                But there is no one to help with the emotional part.
+
+                Ask Claude what they think when a test fails. Giving as context all variables, the traceback, etc.
+                To get a live reaction, as if they were pair programming besides us.
+            </aside>
+        </section>
+
+        <section><h3>Calling for</h3>
+            <ul>
+                <li class="fragment">Bad ideas</li>
+                <li class="fragment">Good for job security</li>
+                <li class="fragment">Also: AI</li>
+            </ul>
+
+            <aside class="notes">
+                AI: I don't want to be left behind
+
+                A lot of the AST examples are relatively old. They are still relevant, but 2011 is ancient in terms of
+                AI-age.
+
+                Come and share your ideas with me!
+
+                Also, a great way to get started and learn more about the AST.
+
+                Just be careful not to accidentally build something useful.
+            </aside>
+        </section>
+
+        <section>
+            <div data-markdown>
+                <textarea data-template>
+                ### About me
+
+                - https://github.com/ldirer/talk-ast-pycon-austria-2025
+                - https://ldirer.com/blog
+                - I help teams go fast and ship good software.
+                </textarea>
+            </div>
+
+            <aside class="notes">
+                The repo does not exist yet :)
+
+                I'll put the slides on GitHub some time next week, with the code and links to references I enjoyed
+                reading.
+
+                I would say I'm pushing this asap but realistically some time next week.
+            </aside>
+
+
+        </section>
+
+
+        <section>
+            <h3>Thank you</h3>
+
+            <aside class="notes">
+                Come talk about this! I'm happy to hear your bad ideas!
+
+                This was my first talk at a conference
+
+                The grammar can serve as a cheatsheet for the ast nodes.
+                https://github.com/python/cpython/blob/main/Parser/Python.asdl
+            </aside>
+        </section>
+    </div>
+</div>
+
+<script src="dist/reveal.js"></script>
+<script src="plugin/notes/notes.js"></script>
+<script src="plugin/markdown/markdown.js"></script>
+<script src="plugin/highlight/highlight.js"></script>
+<script>
+  // More info about initialization & config:
+  // - https://revealjs.com/initialization/
+  // - https://revealjs.com/config/
+  Reveal.initialize({
+    hash: true,
+
+    // Learn about plugins: https://revealjs.com/plugins/
+    plugins: [RevealMarkdown, RevealHighlight, RevealNotes]
+  });
+</script>
+</body>
+</html>
