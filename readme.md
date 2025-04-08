@@ -11,8 +11,10 @@ But it's not that hard to get started and benefit from the magic of AST manipula
 
 ## Code
 
-The code in `assert_transformer.py` shows the code presented in the slides as a 'proof of concept' of a transform to achieve a pytest-like experience.  
+The code in `assert_transform.py` shows the code presented in the slides as a 'proof of concept' of a transform to achieve a pytest-like experience.  
 It is a bit simplistic - to fit on slides and focus the discussion - but the principle is there.
+
+`python assert_transform_pytest.py` shows the result of pytest assertion rewriting.
 
 Tested with Python 3.11. 
 
